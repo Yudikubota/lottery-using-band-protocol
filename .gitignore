@@ -1,0 +1,17 @@
+# arquivos da IDE
+.DS_Store
+
+# dependências
+node_modules/*
+
+# arquivos compilados
+build
+
+# arquivos de ambiente, exceto exemplos
+.env.*
+!.env.example
+!.env.*.example
+
+# misc
+*.ignore
+.ignore
