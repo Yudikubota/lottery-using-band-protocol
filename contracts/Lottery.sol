@@ -3,6 +3,7 @@
 pragma solidity ^0.8.0;
 
 import "@openzeppelin/contracts/access/Ownable.sol";
+import "./IStdReference.sol";
 
 contract Lottery is Ownable {
     address payable[] public players;
@@ -10,7 +11,7 @@ contract Lottery is Ownable {
     uint256 public randomness;
     uint256 public usdEntryFee;
 
-    // IStdReference ref;
+    IStdReference bandRef;
 
     event PlayerEntered(address player, uint256 bet);
     event LotteryEnded(address winner, uint256 prize);
@@ -23,15 +24,25 @@ contract Lottery is Ownable {
 
     LOTTERY_STATE public lottery_state;
 
-    constructor() {
+    constructor(IStdReference _bandRef) {
         usdEntryFee = 50 * 1e18;
         lottery_state = LOTTERY_STATE.CLOSED;
+        bandRef = _bandRef;
     }
 
     // _usdEntryFee is USD with 8 decimals
     function setUsdEntryFee(uint256 _usdEntryFee) onlyOwner public {
         require(lottery_state == LOTTERY_STATE.CLOSED, "Lottery is not closed.");
         usdEntryFee = _usdEntryFee * 1e10;
+    }
+
+    function getPrice() private view returns (uint256) {
+        // Get price feed from BAND Protocol
+        IStdReference.ReferenceData memory data = bandRef.getReferenceData("ETH", "USD");
+
+        // BRAND protocol returns 9 decimals
+        // multiplier: 1000000000 = 1e9
+        return data.rate;
     }
 
     function enter() public payable {
@@ -42,10 +53,8 @@ contract Lottery is Ownable {
     }
 
     function getEntranceFee() public view returns (uint256) {
-        // [TODO] Get price feed from BAND Protocol
-
-        int256 price = 2000 * 1e18; // [MOCK]
-        uint256 ajustedPrice = uint256(price) * 1e10; // chainlink retorna com 8 decimals mas precisamos de 18
+        uint256 price = getPrice();
+        uint256 ajustedPrice = uint256(price) * 1e9; // BAND returns 9 decimals but we need 18
         uint256 costToEnter = (usdEntryFee * 1e18) / ajustedPrice;
         return costToEnter;
     }
