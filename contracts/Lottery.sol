@@ -1,16 +1,19 @@
 // SPDX-License-Identifier: MIT
 
-pragma solidity ^0.6.6;
+pragma solidity ^0.8.0;
 
 import "@openzeppelin/contracts/access/Ownable.sol";
 
-contract Lottery is VRFConsumerBase, Ownable {
+contract Lottery is Ownable {
     address payable[] public players;
     address payable public recentWinner;
     uint256 public randomness;
     uint256 public usdEntryFee;
 
-    event RequestedRandomness(bytes32 requestId);
+    // IStdReference ref;
+
+    event PlayerEntered(address player, uint256 bet);
+    event LotteryEnded(address winner, uint256 prize);
 
     enum LOTTERY_STATE {
         OPEN,
@@ -20,25 +23,34 @@ contract Lottery is VRFConsumerBase, Ownable {
 
     LOTTERY_STATE public lottery_state;
 
-    constructor() public {
+    constructor() {
         usdEntryFee = 50 * 1e18;
         lottery_state = LOTTERY_STATE.CLOSED;
+    }
+
+    // _usdEntryFee is USD with 8 decimals
+    function setUsdEntryFee(uint256 _usdEntryFee) onlyOwner public {
+        require(lottery_state == LOTTERY_STATE.CLOSED, "Lottery is not closed.");
+        usdEntryFee = _usdEntryFee * 1e10;
     }
 
     function enter() public payable {
         require(lottery_state == LOTTERY_STATE.OPEN, "Lottery is not open.");
         require(msg.value >= getEntranceFee(), "Not enough ETH.");
-        players.push(msg.sender);
+        players.push(payable(msg.sender));
+        emit PlayerEntered(msg.sender, msg.value);
     }
 
     function getEntranceFee() public view returns (uint256) {
-        (, int256 price, , , ) = ethUsdPriceFeed.latestRoundData();
+        // [TODO] Get price feed from BAND Protocol
+
+        int256 price = 2000 * 1e18; // [MOCK]
         uint256 ajustedPrice = uint256(price) * 1e10; // chainlink retorna com 8 decimals mas precisamos de 18
         uint256 costToEnter = (usdEntryFee * 1e18) / ajustedPrice;
         return costToEnter;
     }
 
-    function startLottery() public {
+    function startLottery() onlyOwner public {
         require(
             lottery_state == LOTTERY_STATE.CLOSED,
             "Lottery is not closed."
@@ -46,27 +58,38 @@ contract Lottery is VRFConsumerBase, Ownable {
         lottery_state = LOTTERY_STATE.OPEN;
     }
 
-    function endLottery() public {
+    function endLottery() onlyOwner public {
         require(lottery_state == LOTTERY_STATE.OPEN, "Lottery is not open.");
-
-        // não usar parâmetros da blockchain pois eles podem ser inferidos ou
-        // manipulados
-
         lottery_state = LOTTERY_STATE.CALCULATING_WINNER;
-        bytes32 requestId = requestRandomness(keyHash, oracleFee);
-        emit RequestedRandomness(requestId);
-    }
 
-    function fulfillRandomness(bytes32 _requestId, uint256 _randomness) internal override {
-        require(lottery_state == LOTTERY_STATE.CALCULATING_WINNER, "Not in calculating state.");
+        // [MOCK] Generate randomness
+        // uint256 _randomness = _unsafePseudoRandom();
+        uint256 _randomness = 1;
+
+        // Pick winner
         require(_randomness > 0, "random not found");
         uint256 indexOfWinner = _randomness % players.length;
         randomness = _randomness;
         recentWinner = players[indexOfWinner];
+
+        // Transfer
+        emit LotteryEnded(recentWinner, address(this).balance);
         recentWinner.transfer(address(this).balance);
 
         // Reset the lottery
         players = new address payable[](0);
         lottery_state = LOTTERY_STATE.CLOSED;
     }
+
+    // [WARN] This is not the recommended way to generate
+    // random numbers. DO NOT USE IN PRODUCTION ENVIRONMENTS.
+    // I'm using it here because BAND does not offer
+    // randomness yet
+    function _unsafePseudoRandom() private view returns (uint) {
+        // sha3 and now have been deprecated
+        return uint(keccak256(abi.encodePacked(block.difficulty, block.timestamp, players)));
+        // convert hash to integer
+        // players is an array of entrants
+    }
+
 }
