@@ -31,14 +31,20 @@ contract Lottery is Ownable {
     }
 
     // _usdEntryFee is USD with 8 decimals
-    function setUsdEntryFee(uint256 _usdEntryFee) onlyOwner public {
-        require(lottery_state == LOTTERY_STATE.CLOSED, "Lottery is not closed.");
+    function setUsdEntryFee(uint256 _usdEntryFee) public onlyOwner {
+        require(
+            lottery_state == LOTTERY_STATE.CLOSED,
+            "Lottery is not closed."
+        );
         usdEntryFee = _usdEntryFee * 1e10;
     }
 
     function getPrice() private view returns (uint256) {
         // Get price feed from BAND Protocol
-        IStdReference.ReferenceData memory data = bandRef.getReferenceData("ETH", "USD");
+        IStdReference.ReferenceData memory data = bandRef.getReferenceData(
+            "ETH",
+            "USD"
+        );
 
         // BRAND protocol returns 9 decimals
         // multiplier: 1000000000 = 1e9
@@ -54,12 +60,12 @@ contract Lottery is Ownable {
 
     function getEntranceFee() public view returns (uint256) {
         uint256 price = getPrice();
-        uint256 ajustedPrice = uint256(price) * 1e9; // BAND returns 9 decimals but we need 18
+        uint256 ajustedPrice = uint256(price); // BAND returns 9 decimals but we need 18
         uint256 costToEnter = (usdEntryFee * 1e18) / ajustedPrice;
         return costToEnter;
     }
 
-    function startLottery() onlyOwner public {
+    function startLottery() public onlyOwner {
         require(
             lottery_state == LOTTERY_STATE.CLOSED,
             "Lottery is not closed."
@@ -67,7 +73,7 @@ contract Lottery is Ownable {
         lottery_state = LOTTERY_STATE.OPEN;
     }
 
-    function endLottery() onlyOwner public {
+    function endLottery() public onlyOwner {
         require(lottery_state == LOTTERY_STATE.OPEN, "Lottery is not open.");
         lottery_state = LOTTERY_STATE.CALCULATING_WINNER;
 
@@ -94,11 +100,15 @@ contract Lottery is Ownable {
     // random numbers. DO NOT USE IN PRODUCTION ENVIRONMENTS.
     // I'm using it here because BAND does not offer
     // randomness yet
-    function _unsafePseudoRandom() private view returns (uint) {
+    function _unsafePseudoRandom() private view returns (uint256) {
         // sha3 and now have been deprecated
-        return uint(keccak256(abi.encodePacked(block.difficulty, block.timestamp, players)));
+        return
+            uint256(
+                keccak256(
+                    abi.encodePacked(block.difficulty, block.timestamp, players)
+                )
+            );
         // convert hash to integer
         // players is an array of entrants
     }
-
 }

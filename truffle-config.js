@@ -1,9 +1,9 @@
 const HDWalletProvider = require('@truffle/hdwallet-provider');
-const getenv = require('./utils/getenv');
+const get_env = require('./utils/get_env');
 
 const {
   ETHERSCAN_API_KEY,
-} = getenv()
+} = get_env()
 
 module.exports = {
   networks: {
@@ -13,7 +13,7 @@ module.exports = {
       network_id: "*", // Any network (default: none)
     },
     kovan: {
-      provider: () => new HDWalletProvider([getenv('kovan').PRIVATE_KEY], getenv('kovan').NETWORK_ENDPOINT),
+      provider: () => new HDWalletProvider([get_env('kovan').PRIVATE_KEY], get_env('kovan').NETWORK_ENDPOINT),
       network_id: 42,
       gas: 12487794,
       gasPrice: 10000000000,

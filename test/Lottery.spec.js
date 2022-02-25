@@ -9,51 +9,63 @@ const BN = require('bn.js')
 contract('Lottery.sol', (accounts) => {
     const deployer = accounts[0]
     const from = accounts[1]
+    let instance = null
+
+    beforeEach(async () => {
+        instance = await Lottery.deployed()
+    })
 
     it('should have a starting balance of 0', async () => {
-        const instance = await Lottery.deployed()
         const balance = await web3.eth.getBalance(instance.address)
 
         expect(balance).to.eq('0')
     })
 
     it('can start lottery', async () => {
-        const instance = await Lottery.deployed()
-        await instance.startLottery({ from: deployer })
+        await instance.startLottery({
+            from: deployer
+        })
 
         let currentState = await instance.lottery_state.call()
         expect(currentState.toNumber()).to.eq(0)
     })
 
     it('must not enter lottery if value is smaller than entrance fee', async () => {
-        const instance = await Lottery.deployed()
-        let promise = instance.enter({ from, value: 0 })
+        let promise = instance.enter({
+            from,
+            value: 0
+        })
 
         await expect(promise).to.eventually.be.rejectedWith('Not enough ETH')
     })
 
     it('deployer can enter lottery', async () => {
-        const instance = await Lottery.deployed()
         let entranceFee = await instance.getEntranceFee.call()
-        let promise = instance.enter({ from: deployer, value: entranceFee })
+        let promise = instance.enter({
+            from: deployer,
+            value: entranceFee
+        })
 
         await expect(promise).to.eventually.be.fulfilled
     })
 
     it('another account can enter lottery', async () => {
-        const instance = await Lottery.deployed()
         let entranceFee = await instance.getEntranceFee.call()
-        let promise = instance.enter({ from, value: entranceFee })
+        let promise = instance.enter({
+            from,
+            value: entranceFee
+        })
 
         await expect(promise).to.eventually.be.fulfilled
     })
 
     it('can end lottery', async () => {
-        const instance = await Lottery.deployed()
         let previousContractBalance = await web3.eth.getBalance(instance.address)
         let previousWinnerBalance = await web3.eth.getBalance(from)
 
-        await instance.endLottery({ from: deployer })
+        await instance.endLottery({
+            from: deployer
+        })
 
         // Should have closed state
         let currentState = await instance.lottery_state.call()
@@ -67,16 +79,17 @@ contract('Lottery.sol', (accounts) => {
         let currentWinnersBalance = await web3.eth.getBalance(from)
 
         // Convert balances to BN to do arithmetics
-        currentWinnersBalance   = new BN(currentWinnersBalance, 10)
-        previousWinnerBalance   = new BN(previousWinnerBalance, 10)
+        currentWinnersBalance = new BN(currentWinnersBalance, 10)
+        previousWinnerBalance = new BN(previousWinnerBalance, 10)
         previousContractBalance = new BN(previousContractBalance, 10)
 
         expect(currentWinnersBalance.eq(previousWinnerBalance.add(previousContractBalance))).to.be.true
     })
 
     it('must not enter lottery if status is closed', async () => {
-        const instance = await Lottery.deployed()
-        let promise = instance.enter({ from: deployer })
+        let promise = instance.enter({
+            from: deployer
+        })
 
         await expect(promise).to.be.eventually.rejectedWith('Lottery is not open')
     })

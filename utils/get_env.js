@@ -1,4 +1,4 @@
-module.exports = function(network) {
+module.exports = function get_env(network) {
     // Importa variáveis de ambiente de acordo com o network selecionado
     const path = require('path')
 
